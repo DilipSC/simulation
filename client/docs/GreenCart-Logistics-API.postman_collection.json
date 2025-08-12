@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "GreenCart Logistics API",
+    "description": "Complete API collection for GreenCart Logistics - Delivery Simulation & KPI Dashboard",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@greencart.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": [
+            {
+              "name": "Successful Login",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@greencart.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["auth", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user\": {\n    \"id\": \"cm123456789\",\n    \"email\": \"admin@greencart.com\",\n    \"name\": \"Admin User\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        {
+          "name": "Get All Drivers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["drivers"]
+            }
+          }
+        },
+        {
+          "name": "Create Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"+1234567891\",\n  \"licenseNumber\": \"DL123457\",\n  \"vehicleType\": \"Truck\",\n  \"maxHoursPerDay\": 8,\n  \"hourlyRate\": 30.0,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/drivers",
+              "host": ["{{base_url}}"],
+              "path": ["drivers"]
+            }
+          }
+        },
+        {
+          "name": "Get Driver by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/drivers/:id",
+              "host": ["{{base_url}}"],
+              "path": ["drivers", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Driver",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith Updated\",\n  \"email\": \"jane.updated@example.com\",\n  \"phone\": \"+1234567891\",\n  \"licenseNumber\": \"DL123457\",\n  \"vehicleType\": \"Truck\",\n  \"maxHoursPerDay\": 10,\n  \"hourlyRate\": 35.0,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/drivers/:id",
+              "host": ["{{base_url}}"],
+              "path": ["drivers", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Driver",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/drivers/:id",
+              "host": ["{{base_url}}"],
+              "path": ["drivers", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "Get All Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes",
+              "host": ["{{base_url}}"],
+              "path": ["routes"]
+            }
+          }
+        },
+        {
+          "name": "Create Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Suburban Route\",\n  \"startLocation\": \"Warehouse B\",\n  \"endLocation\": \"Suburban Area\",\n  \"distance\": 25.0,\n  \"estimatedTime\": 60,\n  \"fuelCost\": 0.18\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/routes",
+              "host": ["{{base_url}}"],
+              "path": ["routes"]
+            }
+          }
+        },
+        {
+          "name": "Get Route by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes/:id",
+              "host": ["{{base_url}}"],
+              "path": ["routes", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Route",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Suburban Route\",\n  \"startLocation\": \"Warehouse B\",\n  \"endLocation\": \"Extended Suburban Area\",\n  \"distance\": 30.0,\n  \"estimatedTime\": 75,\n  \"fuelCost\": 0.20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/routes/:id",
+              "host": ["{{base_url}}"],
+              "path": ["routes", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Route",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/routes/:id",
+              "host": ["{{base_url}}"],
+              "path": ["routes", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderNumber\": \"ORD-002\",\n  \"customerName\": \"XYZ Corp\",\n  \"customerAddress\": \"456 Commerce Ave\",\n  \"orderValue\": 2000.00,\n  \"priority\": \"urgent\",\n  \"status\": \"pending\",\n  \"driverId\": \"cm123456789\",\n  \"routeId\": \"cm987654321\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/:id",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderNumber\": \"ORD-002-UPDATED\",\n  \"customerName\": \"XYZ Corp Updated\",\n  \"customerAddress\": \"456 Commerce Ave, Suite 100\",\n  \"orderValue\": 2500.00,\n  \"priority\": \"high\",\n  \"status\": \"assigned\",\n  \"driverId\": \"cm123456789\",\n  \"routeId\": \"cm987654321\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/:id",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/:id",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cm123456789"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Simulation",
+      "item": [
+        {
+          "name": "Run Simulation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numDrivers\": 3,\n  \"startTime\": \"08:00\",\n  \"maxHours\": 8\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/simulation/run",
+              "host": ["{{base_url}}"],
+              "path": ["simulation", "run"]
+            }
+          },
+          "response": [
+            {
+              "name": "Successful Simulation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"numDrivers\": 3,\n  \"startTime\": \"08:00\",\n  \"maxHours\": 8\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/simulation/run",
+                  "host": ["{{base_url}}"],
+                  "path": ["simulation", "run"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"totalProfit\": 15750.25,\n  \"efficiencyScore\": 87.5,\n  \"onTimeDeliveries\": 12,\n  \"lateDeliveries\": 2,\n  \"totalFuelCost\": 245.80,\n  \"averageDeliveryTime\": 65.5,\n  \"driverUtilization\": [\n    {\n      \"driver\": \"John Doe\",\n      \"utilization\": 85\n    }\n  ],\n  \"hourlyPerformance\": [\n    {\n      \"hour\": \"08:00\",\n      \"deliveries\": 3,\n      \"efficiency\": 92\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Simulation History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/simulation/history",
+              "host": ["{{base_url}}"],
+              "path": ["simulation", "history"]
+            }
+          },
+          "response": [
+            {
+              "name": "Simulation History",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/simulation/history",
+                  "host": ["{{base_url}}"],
+                  "path": ["simulation", "history"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"cm123456789\",\n    \"timestamp\": \"2024-01-01T08:00:00.000Z\",\n    \"numDrivers\": 3,\n    \"startTime\": \"08:00\",\n    \"maxHoursPerDay\": 8,\n    \"totalProfit\": 15750.25,\n    \"efficiencyScore\": 87.5,\n    \"onTimeDeliveries\": 12,\n    \"lateDeliveries\": 2,\n    \"totalFuelCost\": 245.80,\n    \"averageDeliveryTime\": 65.5,\n    \"driverUtilization\": 85,\n    \"hourlyPerformance\": 12\n  }\n]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
