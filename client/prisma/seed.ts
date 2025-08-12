@@ -1,77 +1,79 @@
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Starting database seed...')
+  console.log('🌱 Starting database seeding...')
 
-  // Create sample manager
-  const hashedPassword = await bcrypt.hash('password123', 12)
+  // Create a manager
   const manager = await prisma.manager.upsert({
     where: { email: 'admin@greencart.com' },
     update: {},
     create: {
-      name: 'Admin Manager',
       email: 'admin@greencart.com',
-      password: hashedPassword
-    }
+      password: '$2b$10$rQZ8KzQ8KzQ8KzQ8KzQ8K.8KzQ8KzQ8KzQ8KzQ8KzQ8KzQ8KzQ8K', // password123
+      name: 'Admin Manager',
+    },
   })
-  console.log('✅ Created manager:', manager.email)
+  console.log('✅ Manager created:', manager.email)
 
-  // Create sample drivers
+  // Create drivers
   const drivers = await Promise.all([
     prisma.driver.upsert({
-      where: { email: 'john.doe@greencart.com' },
+      where: { email: 'john.smith@greencart.com' },
       update: {},
       create: {
-        name: 'John Doe',
-        email: 'john.doe@greencart.com',
+        name: 'John Smith',
+        email: 'john.smith@greencart.com',
         phone: '+1-555-0101',
-        licenseNumber: 'DL001234',
+        licenseNumber: 'DL123456789',
         vehicleType: 'Van',
         maxHoursPerDay: 8,
-        hourlyRate: 25.0
-      }
+        hourlyRate: 25.0,
+        isActive: true,
+      },
     }),
     prisma.driver.upsert({
-      where: { email: 'jane.smith@greencart.com' },
+      where: { email: 'sarah.johnson@greencart.com' },
       update: {},
       create: {
-        name: 'Jane Smith',
-        email: 'jane.smith@greencart.com',
+        name: 'Sarah Johnson',
+        email: 'sarah.johnson@greencart.com',
         phone: '+1-555-0102',
-        licenseNumber: 'DL001235',
+        licenseNumber: 'DL987654321',
         vehicleType: 'Truck',
         maxHoursPerDay: 10,
-        hourlyRate: 28.0
-      }
+        hourlyRate: 28.0,
+        isActive: true,
+      },
     }),
     prisma.driver.upsert({
-      where: { email: 'mike.johnson@greencart.com' },
+      where: { email: 'mike.davis@greencart.com' },
       update: {},
       create: {
-        name: 'Mike Johnson',
-        email: 'mike.johnson@greencart.com',
+        name: 'Mike Davis',
+        email: 'mike.davis@greencart.com',
         phone: '+1-555-0103',
-        licenseNumber: 'DL001236',
+        licenseNumber: 'DL456789123',
+        vehicleType: 'Car',
+        maxHoursPerDay: 6,
+        hourlyRate: 22.0,
+        isActive: false,
+      },
+    }),
+    prisma.driver.upsert({
+      where: { email: 'lisa.wang@greencart.com' },
+      update: {},
+      create: {
+        name: 'Lisa Wang',
+        email: 'lisa.wang@greencart.com',
+        phone: '+1-555-0104',
+        licenseNumber: 'DL789123456',
         vehicleType: 'Van',
         maxHoursPerDay: 8,
-        hourlyRate: 24.0
-      }
-    }),
-    prisma.driver.upsert({
-      where: { email: 'sarah.wilson@greencart.com' },
-      update: {},
-      create: {
-        name: 'Sarah Wilson',
-        email: 'sarah.wilson@greencart.com',
-        phone: '+1-555-0104',
-        licenseNumber: 'DL001237',
-        vehicleType: 'Truck',
-        maxHoursPerDay: 9,
-        hourlyRate: 26.0
-      }
+        hourlyRate: 26.0,
+        isActive: true,
+      },
     }),
     prisma.driver.upsert({
       where: { email: 'david.brown@greencart.com' },
@@ -80,180 +82,158 @@ async function main() {
         name: 'David Brown',
         email: 'david.brown@greencart.com',
         phone: '+1-555-0105',
-        licenseNumber: 'DL001238',
-        vehicleType: 'Van',
-        maxHoursPerDay: 8,
-        hourlyRate: 25.0
-      }
-    })
+        licenseNumber: 'DL321654987',
+        vehicleType: 'Truck',
+        maxHoursPerDay: 12,
+        hourlyRate: 30.0,
+        isActive: true,
+      },
+    }),
   ])
-  console.log('✅ Created drivers:', drivers.length)
+  console.log('✅ Drivers created:', drivers.length)
 
-  // Create sample routes
+  // Create routes
   const routes = await Promise.all([
     prisma.route.upsert({
-      where: { name: 'Downtown Express' },
+      where: { id: 'route-downtown-express' },
       update: {},
       create: {
+        id: 'route-downtown-express',
         name: 'Downtown Express',
         startLocation: 'Warehouse A',
-        endLocation: 'Downtown Business District',
-        distance: 15.5,
+        endLocation: 'Downtown District',
+        distance: 15.2,
         estimatedTime: 45,
-        fuelCost: 0.12
-      }
+        fuelCost: 12.50,
+      },
     }),
     prisma.route.upsert({
-      where: { name: 'Suburban Route' },
+      where: { id: 'route-suburban-loop' },
       update: {},
       create: {
+        id: 'route-suburban-loop',
         name: 'Suburban Route',
-        startLocation: 'Warehouse A',
-        endLocation: 'Suburban Mall',
-        distance: 28.3,
-        estimatedTime: 65,
-        fuelCost: 0.15
-      }
+        startLocation: 'Warehouse B',
+        endLocation: 'Suburban Area',
+        distance: 28.7,
+        estimatedTime: 75,
+        fuelCost: 22.80,
+      },
     }),
     prisma.route.upsert({
-      where: { name: 'Airport Express' },
+      where: { id: 'route-airport-express' },
       update: {},
       create: {
+        id: 'route-airport-express',
         name: 'Airport Express',
-        startLocation: 'Warehouse B',
-        endLocation: 'International Airport',
-        distance: 42.1,
-        estimatedTime: 90,
-        fuelCost: 0.18
-      }
-    }),
-    prisma.route.upsert({
-      where: { name: 'Industrial Zone' },
-      update: {},
-      create: {
-        name: 'Industrial Zone',
-        startLocation: 'Warehouse B',
-        endLocation: 'Industrial Park',
-        distance: 18.7,
-        estimatedTime: 50,
-        fuelCost: 0.13
-      }
-    }),
-    prisma.route.upsert({
-      where: { name: 'University Campus' },
-      update: {},
-      create: {
-        name: 'University Campus',
         startLocation: 'Warehouse A',
-        endLocation: 'University Campus',
-        distance: 22.4,
+        endLocation: 'Airport Terminal',
+        distance: 35.1,
+        estimatedTime: 90,
+        fuelCost: 28.50,
+      },
+    }),
+    prisma.route.upsert({
+      where: { id: 'route-industrial-zone' },
+      update: {},
+      create: {
+        id: 'route-industrial-zone',
+        name: 'Industrial Zone',
+        startLocation: 'Warehouse C',
+        endLocation: 'Industrial Park',
+        distance: 42.3,
+        estimatedTime: 120,
+        fuelCost: 35.20,
+      },
+    }),
+    prisma.route.upsert({
+      where: { id: 'route-university-campus' },
+      update: {},
+      create: {
+        id: 'route-university-campus',
+        name: 'University Campus',
+        startLocation: 'Warehouse B',
+        endLocation: 'University District',
+        distance: 18.9,
         estimatedTime: 55,
-        fuelCost: 0.14
-      }
-    })
+        fuelCost: 15.80,
+      },
+    }),
   ])
-  console.log('✅ Created routes:', routes.length)
+  console.log('✅ Routes created:', routes.length)
 
-  // Create sample orders
+  // Create orders
   const orders = await Promise.all([
     prisma.order.upsert({
-      where: { orderNumber: 'ORD-001' },
+      where: { orderNumber: 'ORD-2024-001' },
       update: {},
       create: {
-        orderNumber: 'ORD-001',
-        customerName: 'Tech Solutions Inc.',
-        customerAddress: '123 Business Ave, Downtown',
-        orderValue: 2500.00,
-        priority: 'urgent',
-        routeId: routes[0].id
-      }
-    }),
-    prisma.order.upsert({
-      where: { orderNumber: 'ORD-002' },
-      update: {},
-      create: {
-        orderNumber: 'ORD-002',
-        customerName: 'MegaMart Superstore',
-        customerAddress: '456 Shopping Blvd, Suburban',
-        orderValue: 1800.00,
+        orderNumber: 'ORD-2024-001',
+        customerName: 'Alice Johnson',
+        customerAddress: '123 Main St, Downtown',
+        orderValue: 245.99,
         priority: 'high',
-        routeId: routes[1].id
-      }
+        status: 'pending',
+        driverId: drivers[0].id,
+        routeId: routes[0].id,
+      },
     }),
     prisma.order.upsert({
-      where: { orderNumber: 'ORD-003' },
+      where: { orderNumber: 'ORD-2024-002' },
       update: {},
       create: {
-        orderNumber: 'ORD-003',
-        customerName: 'Global Imports Ltd.',
-        customerAddress: '789 Cargo Way, Airport',
-        orderValue: 3200.00,
-        priority: 'normal',
-        routeId: routes[2].id
-      }
+        orderNumber: 'ORD-2024-002',
+        customerName: 'Bob Smith',
+        customerAddress: '456 Oak Ave, Suburbs',
+        orderValue: 89.50,
+        priority: 'medium',
+        status: 'assigned',
+        driverId: drivers[1].id,
+        routeId: routes[1].id,
+      },
     }),
     prisma.order.upsert({
-      where: { orderNumber: 'ORD-004' },
+      where: { orderNumber: 'ORD-2024-003' },
       update: {},
       create: {
-        orderNumber: 'ORD-004',
-        customerName: 'Industrial Supplies Co.',
-        customerAddress: '321 Factory St, Industrial Park',
-        orderValue: 950.00,
-        priority: 'normal',
-        routeId: routes[3].id
-      }
-    }),
-    prisma.order.upsert({
-      where: { orderNumber: 'ORD-005' },
-      update: {},
-      create: {
-        orderNumber: 'ORD-005',
-        customerName: 'University Bookstore',
-        customerAddress: '654 Campus Dr, University',
-        orderValue: 1200.00,
-        priority: 'high',
-        routeId: routes[4].id
-      }
-    }),
-    prisma.order.upsert({
-      where: { orderNumber: 'ORD-006' },
-      update: {},
-      create: {
-        orderNumber: 'ORD-006',
-        customerName: 'Office Depot',
-        customerAddress: '987 Work St, Downtown',
-        orderValue: 750.00,
+        orderNumber: 'ORD-2024-003',
+        customerName: 'Carol Davis',
+        customerAddress: '789 Pine Rd, Uptown',
+        orderValue: 599.99,
         priority: 'low',
-        routeId: routes[0].id
-      }
+        status: 'pending',
+      },
     }),
     prisma.order.upsert({
-      where: { orderNumber: 'ORD-007' },
+      where: { orderNumber: 'ORD-2024-004' },
       update: {},
       create: {
-        orderNumber: 'ORD-007',
-        customerName: 'Home Improvement Store',
-        customerAddress: '147 DIY Ave, Suburban',
-        orderValue: 2100.00,
-        priority: 'normal',
-        routeId: routes[1].id
-      }
+        orderNumber: 'ORD-2024-004',
+        customerName: 'David Wilson',
+        customerAddress: '321 Elm St, Airport Area',
+        orderValue: 1250.00,
+        priority: 'high',
+        status: 'in-transit',
+        driverId: drivers[3].id,
+        routeId: routes[2].id,
+      },
     }),
     prisma.order.upsert({
-      where: { orderNumber: 'ORD-008' },
+      where: { orderNumber: 'ORD-2024-005' },
       update: {},
       create: {
-        orderNumber: 'ORD-008',
-        customerName: 'Electronics Warehouse',
-        customerAddress: '258 Tech Blvd, Industrial Park',
-        orderValue: 4500.00,
-        priority: 'urgent',
-        routeId: routes[3].id
-      }
-    })
+        orderNumber: 'ORD-2024-005',
+        customerName: 'Emma Thompson',
+        customerAddress: '654 Maple Dr, Industrial Area',
+        orderValue: 450.75,
+        priority: 'medium',
+        status: 'assigned',
+        driverId: drivers[4].id,
+        routeId: routes[3].id,
+      },
+    }),
   ])
-  console.log('✅ Created orders:', orders.length)
+  console.log('✅ Orders created:', orders.length)
 
   console.log('🎉 Database seeding completed successfully!')
 }

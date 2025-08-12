@@ -1,158 +1,207 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { withAuth, AuthenticatedRequest } from '@/lib/auth-middleware'
-import { addCorsHeaders, handleCors } from '@/lib/cors'
+import { NextRequest, NextResponse } from "next/server"
+import { withAuth, AuthenticatedRequest } from "@/lib/auth-middleware"
+import { addCorsHeaders, handleCors } from "@/lib/cors"
+import { prisma } from "@/lib/db"
 
-// GET /api/drivers/[id] - Get a specific driver
-async function getDriver(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+// Wrapper functions to handle params
+const getDriverHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     const driver = await prisma.driver.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!driver) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Driver not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Driver not found" },
+        { status: 404 }
       )
     }
 
-    return addCorsHeaders(NextResponse.json(driver))
+    return NextResponse.json(driver)
   } catch (error) {
-    console.error('Get driver error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error fetching driver:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-// PUT /api/drivers/[id] - Update a driver
-async function updateDriver(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+const updateDriverHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     const body = await request.json()
     const { name, email, phone, licenseNumber, vehicleType, maxHoursPerDay, hourlyRate, isActive } = body
 
+    // Validation
+    if (!name || !email || !phone || !licenseNumber || !vehicleType) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      )
+    }
+
+    if (maxHoursPerDay < 1 || maxHoursPerDay > 24) {
+      return NextResponse.json(
+        { error: "Max hours per day must be between 1 and 24" },
+        { status: 400 }
+      )
+    }
+
+    if (hourlyRate < 0) {
+      return NextResponse.json(
+        { error: "Hourly rate cannot be negative" },
+        { status: 400 }
+      )
+    }
+
     // Check if driver exists
     const existingDriver = await prisma.driver.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!existingDriver) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Driver not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Driver not found" },
+        { status: 404 }
       )
     }
 
-    // Check for conflicts if email or license is being updated
-    if (email || licenseNumber) {
-      const conflictDriver = await prisma.driver.findFirst({
-        where: {
-          AND: [
-            { id: { not: params.id } },
-            {
-              OR: [
-                ...(email ? [{ email: email.toLowerCase() }] : []),
-                ...(licenseNumber ? [{ licenseNumber }] : [])
-              ]
-            }
-          ]
-        }
+    // Check for email conflict (if email is being changed)
+    if (email !== existingDriver.email) {
+      const emailConflict = await prisma.driver.findUnique({
+        where: { email },
       })
 
-      if (conflictDriver) {
-        return addCorsHeaders(
-          NextResponse.json(
-            { error: 'Driver with this email or license number already exists' },
-            { status: 409 }
-          )
+      if (emailConflict) {
+        return NextResponse.json(
+          { error: "Email already exists" },
+          { status: 409 }
         )
       }
     }
 
-    const updatedDriver = await prisma.driver.update({
-      where: { id: params.id },
-      data: {
-        ...(name && { name }),
-        ...(email && { email: email.toLowerCase() }),
-        ...(phone && { phone }),
-        ...(licenseNumber && { licenseNumber }),
-        ...(vehicleType && { vehicleType }),
-        ...(maxHoursPerDay !== undefined && { maxHoursPerDay }),
-        ...(hourlyRate !== undefined && { hourlyRate }),
-        ...(isActive !== undefined && { isActive })
+    // Check for license number conflict (if license is being changed)
+    if (licenseNumber !== existingDriver.licenseNumber) {
+      const licenseConflict = await prisma.driver.findUnique({
+        where: { licenseNumber },
+      })
+
+      if (licenseConflict) {
+        return NextResponse.json(
+          { error: "License number already exists" },
+          { status: 409 }
+        )
       }
+    }
+
+    // Update driver
+    const updatedDriver = await prisma.driver.update({
+      where: { id },
+      data: {
+        name,
+        email,
+        phone,
+        licenseNumber,
+        vehicleType,
+        maxHoursPerDay,
+        hourlyRate,
+        isActive,
+      },
     })
 
-    return addCorsHeaders(NextResponse.json(updatedDriver))
+    return NextResponse.json(updatedDriver)
   } catch (error) {
-    console.error('Update driver error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error updating driver:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-// DELETE /api/drivers/[id] - Delete a driver
-async function deleteDriver(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+const deleteDriverHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     // Check if driver exists
     const existingDriver = await prisma.driver.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!existingDriver) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Driver not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Driver not found" },
+        { status: 404 }
       )
     }
 
     // Check if driver has associated orders
     const associatedOrders = await prisma.order.findFirst({
-      where: { driverId: params.id }
+      where: { driverId: id },
     })
 
     if (associatedOrders) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Cannot delete driver with associated orders' },
-          { status: 400 }
-        )
+      return NextResponse.json(
+        { error: "Cannot delete driver with associated orders" },
+        { status: 400 }
       )
     }
 
+    // Delete driver
     await prisma.driver.delete({
-      where: { id: params.id }
+      where: { id },
     })
 
-    return addCorsHeaders(NextResponse.json({ message: 'Driver deleted successfully' }))
+    return NextResponse.json({ message: "Driver deleted successfully" })
   } catch (error) {
-    console.error('Delete driver error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error deleting driver:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-export const GET = withAuth(getDriver)
-export const PUT = withAuth(updateDriver)
-export const DELETE = withAuth(deleteDriver)
+// Route handlers
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return getDriverHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return updateDriverHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return deleteDriverHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
 
 export async function OPTIONS(request: NextRequest) {
   return handleCors(request) || new NextResponse(null, { status: 200 })

@@ -29,8 +29,7 @@ interface Route {
   endLocation: string
   distance: number
   estimatedTime: number
-  difficulty: "easy" | "medium" | "hard"
-  status: "active" | "inactive"
+  fuelCost: number
 }
 
 export default function RoutesPage() {
@@ -39,6 +38,7 @@ export default function RoutesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingRoute, setEditingRoute] = useState<Route | null>(null)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const router = useRouter()
 
   // Form state
@@ -48,8 +48,7 @@ export default function RoutesPage() {
     endLocation: "",
     distance: 0,
     estimatedTime: 0,
-    difficulty: "medium" as "easy" | "medium" | "hard",
-    status: "active" as "active" | "inactive",
+    fuelCost: 0,
   })
 
   useEffect(() => {
@@ -66,42 +65,22 @@ export default function RoutesPage() {
 
   const loadRoutes = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockRoutes: Route[] = [
-        {
-          id: "1",
-          name: "Downtown Express",
-          startLocation: "Warehouse A",
-          endLocation: "Downtown District",
-          distance: 15.2,
-          estimatedTime: 45,
-          difficulty: "medium",
-          status: "active",
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch("/api/routes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-        {
-          id: "2",
-          name: "Suburban Loop",
-          startLocation: "Warehouse B",
-          endLocation: "Suburban Area",
-          distance: 28.7,
-          estimatedTime: 75,
-          difficulty: "easy",
-          status: "active",
-        },
-        {
-          id: "3",
-          name: "Mountain Route",
-          startLocation: "Warehouse A",
-          endLocation: "Mountain View",
-          distance: 42.1,
-          estimatedTime: 120,
-          difficulty: "hard",
-          status: "inactive",
-        },
-      ]
-      setRoutes(mockRoutes)
-    } catch (err) {
-      setError("Failed to load routes")
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to load routes")
+      }
+
+      const data = await response.json()
+      setRoutes(data)
+    } catch (err: any) {
+      setError(err.message || "Failed to load routes")
     } finally {
       setLoading(false)
     }
@@ -110,19 +89,35 @@ export default function RoutesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
 
     try {
+      const token = localStorage.getItem("auth-token")
+      const url = editingRoute ? `/api/routes/${editingRoute.id}` : "/api/routes"
+      const method = editingRoute ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save route")
+      }
+
+      const savedRoute = await response.json()
+      
       if (editingRoute) {
-        // Update existing route
-        const updatedRoute = { ...editingRoute, ...formData }
-        setRoutes(routes.map((r) => (r.id === editingRoute.id ? updatedRoute : r)))
+        setRoutes(routes.map((r) => (r.id === editingRoute.id ? savedRoute : r)))
+        setSuccess("Route updated successfully!")
       } else {
-        // Create new route
-        const newRoute: Route = {
-          id: Date.now().toString(),
-          ...formData,
-        }
-        setRoutes([...routes, newRoute])
+        setRoutes([...routes, savedRoute])
+        setSuccess("Route added successfully!")
       }
 
       // Reset form
@@ -132,13 +127,15 @@ export default function RoutesPage() {
         endLocation: "",
         distance: 0,
         estimatedTime: 0,
-        difficulty: "medium",
-        status: "active",
+        fuelCost: 0,
       })
       setEditingRoute(null)
       setIsDialogOpen(false)
-    } catch (err) {
-      setError("Failed to save route")
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000)
+    } catch (err: any) {
+      setError(err.message || "Failed to save route")
     }
   }
 
@@ -150,15 +147,33 @@ export default function RoutesPage() {
       endLocation: route.endLocation,
       distance: route.distance,
       estimatedTime: route.estimatedTime,
-      difficulty: route.difficulty,
-      status: route.status,
+      fuelCost: route.fuelCost,
     })
     setIsDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this route?")) {
-      setRoutes(routes.filter((r) => r.id !== id))
+      try {
+        const token = localStorage.getItem("auth-token")
+        const response = await fetch(`/api/routes/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to delete route")
+        }
+
+        setRoutes(routes.filter((r) => r.id !== id))
+        setSuccess("Route deleted successfully!")
+        setTimeout(() => setSuccess(""), 3000)
+      } catch (err: any) {
+        setError(err.message || "Failed to delete route")
+      }
     }
   }
 
@@ -169,11 +184,11 @@ export default function RoutesPage() {
       endLocation: "",
       distance: 0,
       estimatedTime: 0,
-      difficulty: "medium",
-      status: "active",
+      fuelCost: 0,
     })
     setEditingRoute(null)
     setError("")
+    setSuccess("")
   }
 
   if (loading) {
@@ -217,7 +232,7 @@ export default function RoutesPage() {
                   Add Route
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingRoute ? "Edit Route" : "Add New Route"}</DialogTitle>
                   <DialogDescription>
@@ -253,60 +268,56 @@ export default function RoutesPage() {
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="distance">Distance (km)</Label>
-                      <Input
-                        id="distance"
-                        type="number"
-                        step="0.1"
-                        value={formData.distance}
-                        onChange={(e) => setFormData({ ...formData, distance: Number.parseFloat(e.target.value) || 0 })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="estimatedTime">Estimated Time (minutes)</Label>
-                      <Input
-                        id="estimatedTime"
-                        type="number"
-                        value={formData.estimatedTime}
-                        onChange={(e) =>
-                          setFormData({ ...formData, estimatedTime: Number.parseInt(e.target.value) || 0 })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="difficulty">Difficulty</Label>
-                      <select
-                        id="difficulty"
-                        value={formData.difficulty}
-                        onChange={(e) =>
-                          setFormData({ ...formData, difficulty: e.target.value as "easy" | "medium" | "hard" })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <select
-                        id="status"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "inactive" })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="distance">Distance (km)</Label>
+                        <Input
+                          id="distance"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={formData.distance}
+                          onChange={(e) => setFormData({ ...formData, distance: Number.parseFloat(e.target.value) || 0 })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="estimatedTime">Est. Time (min)</Label>
+                        <Input
+                          id="estimatedTime"
+                          type="number"
+                          min="0"
+                          value={formData.estimatedTime}
+                          onChange={(e) =>
+                            setFormData({ ...formData, estimatedTime: Number.parseInt(e.target.value) || 0 })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fuelCost">Fuel Cost ($)</Label>
+                        <Input
+                          id="fuelCost"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.fuelCost}
+                          onChange={(e) =>
+                            setFormData({ ...formData, fuelCost: Number.parseFloat(e.target.value) || 0 })
+                          }
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                   {error && (
                     <Alert variant="destructive" className="mb-4">
                       <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  {success && (
+                    <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
+                      <AlertDescription>{success}</AlertDescription>
                     </Alert>
                   )}
                   <DialogFooter>
@@ -334,8 +345,7 @@ export default function RoutesPage() {
                   <TableHead>End Location</TableHead>
                   <TableHead>Distance</TableHead>
                   <TableHead>Est. Time</TableHead>
-                  <TableHead>Difficulty</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Fuel Cost</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -347,28 +357,7 @@ export default function RoutesPage() {
                     <TableCell>{route.endLocation}</TableCell>
                     <TableCell>{route.distance} km</TableCell>
                     <TableCell>{route.estimatedTime} min</TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          route.difficulty === "easy"
-                            ? "bg-green-100 text-green-800"
-                            : route.difficulty === "medium"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {route.difficulty}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          route.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {route.status}
-                      </span>
-                    </TableCell>
+                    <TableCell>${route.fuelCost.toFixed(2)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(route)}>
@@ -383,6 +372,11 @@ export default function RoutesPage() {
                 ))}
               </TableBody>
             </Table>
+            {routes.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No routes found. Add your first route to get started.
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

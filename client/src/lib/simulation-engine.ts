@@ -79,7 +79,7 @@ export class SimulationEngine {
     this.assignDeliveriesToDrivers(availableDrivers, driverWorkloads, params.maxHoursPerDay)
 
     // Calculate results
-    const results = this.calculateResults(driverWorkloads)
+    const results = this.calculateResults(driverWorkloads, params)
 
     // Save simulation result to database
     await this.saveSimulationResult(params, results)
@@ -88,44 +88,60 @@ export class SimulationEngine {
   }
 
   private createDelivery(order: any, route: any, startTimeMinutes: number): Delivery {
-    const estimatedTime = route.estimatedTime
-    const distance = route.distance
-    const fuelCost = route.fuelCost * distance
+    // Add realistic variability factors
+    const trafficFactor = 0.8 + (Math.random() * 0.4) // 0.8 to 1.2 (traffic conditions)
+    const weatherFactor = 0.9 + (Math.random() * 0.2) // 0.9 to 1.1 (weather impact)
+    const driverEfficiencyFactor = 0.85 + (Math.random() * 0.3) // 0.85 to 1.15 (driver skill)
+    
+    // Apply variability to estimated time and distance
+    const actualEstimatedTime = Math.round(route.estimatedTime * trafficFactor * weatherFactor)
+    const actualDistance = route.distance * (0.95 + Math.random() * 0.1) // Route variations
+    const fuelCost = route.fuelCost * actualDistance * (0.9 + Math.random() * 0.2) // Fuel price fluctuation
 
-    // Calculate if delivery is late (assuming 2-hour window)
+    // Calculate if delivery is late with realistic variability
     const deliveryWindow = 120 // 2 hours in minutes
-    const isLate = estimatedTime > deliveryWindow
+    const actualTime = Math.round(actualEstimatedTime * driverEfficiencyFactor)
+    const isLate = actualTime > deliveryWindow
 
-    // Calculate profit based on company rules
-    let profit = order.orderValue * 0.15 // Base profit 15% of order value
+    // Calculate profit based on company rules with market fluctuations
+    const marketFactor = 0.95 + (Math.random() * 0.1) // Market conditions affect profit margins
+    let profit = order.orderValue * 0.15 * marketFactor // Base profit with market variability
 
-    // Late Delivery Penalty
+    // Late Delivery Penalty (with severity based on how late)
     if (isLate) {
-      profit -= order.orderValue * 0.1 // 10% penalty
+      const latenessSeverity = Math.min(2.0, (actualTime - deliveryWindow) / 60) // Hours late
+      const penaltyRate = 0.05 + (latenessSeverity * 0.025) // Escalating penalty
+      profit -= order.orderValue * penaltyRate
     }
 
-    // High-Value Bonus (orders over $1000 get 5% bonus)
+    // High-Value Bonus (orders over $1000 get variable bonus)
     if (order.orderValue > 1000) {
-      profit += order.orderValue * 0.05
+      const bonusRate = 0.03 + (Math.random() * 0.04) // 3-7% bonus
+      profit += order.orderValue * bonusRate
     }
 
-    // Priority bonus
+    // Priority bonus with variability
     if (order.priority === 'urgent') {
-      profit += order.orderValue * 0.03
+      profit += order.orderValue * (0.025 + Math.random() * 0.01) // 2.5-3.5%
     } else if (order.priority === 'high') {
-      profit += order.orderValue * 0.02
+      profit += order.orderValue * (0.015 + Math.random() * 0.01) // 1.5-2.5%
+    }
+
+    // Customer satisfaction bonus (random positive factor)
+    if (Math.random() > 0.7) { // 30% chance
+      profit += order.orderValue * (0.01 + Math.random() * 0.02) // 1-3% satisfaction bonus
     }
 
     return {
       id: order.id,
       orderValue: order.orderValue,
       priority: order.priority,
-      estimatedTime,
-      distance,
+      estimatedTime: actualEstimatedTime,
+      distance: actualDistance,
       fuelCost,
       isLate,
-      actualTime: estimatedTime,
-      profit
+      actualTime,
+      profit: Math.max(0, profit) // Ensure profit doesn't go negative
     }
   }
 
@@ -177,32 +193,48 @@ export class SimulationEngine {
     }
   }
 
-  private calculateResults(driverWorkloads: Map<string, { hours: number; deliveries: number }>): SimulationResult {
+  private calculateResults(driverWorkloads: Map<string, { hours: number; deliveries: number }>, params: SimulationParams): SimulationResult {
     const totalProfit = this.deliveries.reduce((sum, d) => sum + d.profit, 0)
     const totalFuelCost = this.deliveries.reduce((sum, d) => sum + d.fuelCost, 0)
     const onTimeDeliveries = this.deliveries.filter(d => !d.isLate).length
     const lateDeliveries = this.deliveries.filter(d => d.isLate).length
     const totalDeliveries = this.deliveries.length
 
-    // Calculate efficiency score
-    let efficiencyScore = 100
+    // Calculate efficiency score with realistic factors
+    let efficiencyScore = 95 + (Math.random() * 10) // Base efficiency with daily variation
 
     // Penalty for unassigned deliveries
     const unassignedDeliveries = this.deliveries.filter(d => !d.driverId).length
     if (totalDeliveries > 0) {
-      efficiencyScore -= (unassignedDeliveries / totalDeliveries) * 30
+      const unassignedRate = unassignedDeliveries / totalDeliveries
+      efficiencyScore -= unassignedRate * (25 + Math.random() * 10) // Variable penalty
     }
 
-    // Penalty for late deliveries
+    // Penalty for late deliveries with severity consideration
     if (totalDeliveries > 0) {
-      efficiencyScore -= (lateDeliveries / totalDeliveries) * 20
+      const lateRate = lateDeliveries / totalDeliveries
+      const averageLateness = this.deliveries
+        .filter(d => d.isLate)
+        .reduce((sum, d) => sum + Math.max(0, d.actualTime - 120), 0) / Math.max(1, lateDeliveries)
+      
+      const latenessSeverity = Math.min(2.0, averageLateness / 60) // Hours late
+      efficiencyScore -= lateRate * (15 + latenessSeverity * 10 + Math.random() * 5)
     }
 
     // Bonus for high-value orders
     const highValueOrders = this.deliveries.filter(d => d.orderValue > 1000).length
     if (totalDeliveries > 0) {
-      efficiencyScore += (highValueOrders / totalDeliveries) * 10
+      const highValueRate = highValueOrders / totalDeliveries
+      efficiencyScore += highValueRate * (8 + Math.random() * 4) // Variable bonus
     }
+
+    // Team performance factor (simulates daily team dynamics)
+    const teamPerformanceFactor = 0.95 + (Math.random() * 0.1) // 95-105%
+    efficiencyScore *= teamPerformanceFactor
+
+    // Weather/external conditions impact
+    const externalConditionsFactor = 0.9 + (Math.random() * 0.2) // 90-110%
+    efficiencyScore *= externalConditionsFactor
 
     efficiencyScore = Math.max(0, Math.min(100, efficiencyScore))
 
@@ -211,22 +243,63 @@ export class SimulationEngine {
       ? this.deliveries.reduce((sum, d) => sum + d.actualTime, 0) / totalDeliveries
       : 0
 
-    // Driver utilization data
+    // Driver utilization data with realistic variations
     const driverUtilization = Array.from(driverWorkloads.entries()).map(([driverId, workload]) => {
       const driver = this.drivers.find(d => d.id === driverId)
-      const utilization = (workload.hours / 8) * 100 // Assuming 8-hour workday
+      const baseUtilization = (workload.hours / params.maxHoursPerDay) * 100
+      
+      // Add driver-specific performance variations
+      const driverEfficiency = 0.85 + (Math.random() * 0.3) // Individual driver performance
+      const dailyConditions = 0.9 + (Math.random() * 0.2) // Daily conditions affect each driver
+      
+      const adjustedUtilization = baseUtilization * driverEfficiency * dailyConditions
+      
       return {
         driver: driver?.name || `Driver ${driverId}`,
-        utilization: Math.min(100, Math.max(0, utilization))
+        utilization: Math.min(100, Math.max(0, Math.round(adjustedUtilization)))
       }
     })
 
-    // Hourly performance data (simplified)
-    const hourlyPerformance = Array.from({ length: 12 }, (_, i) => ({
-      hour: `${8 + i}:00`,
-      deliveries: Math.floor(Math.random() * 5) + 2, // Mock data
-      efficiency: Math.floor(Math.random() * 20) + 80 // Mock data
-    }))
+    // Calculate real hourly performance data with realistic variations
+    const [startHour] = params.startTime.split(':').map(Number)
+    const workingHours = Math.min(12, params.maxHoursPerDay)
+    
+    const hourlyPerformance = Array.from({ length: workingHours }, (_, i) => {
+      const hour = startHour + i
+      const hourString = `${hour.toString().padStart(2, '0')}:00`
+      
+      // Simulate realistic hourly patterns
+      const rushHourFactor = (hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19) ? 1.2 : 1.0
+      const lunchTimeFactor = (hour >= 12 && hour <= 14) ? 0.8 : 1.0
+      const endOfDayFactor = hour >= 16 ? (1.0 - (hour - 16) * 0.05) : 1.0
+      
+      // Base deliveries per hour with realistic distribution
+      const baseDeliveriesPerHour = Math.max(1, Math.floor(totalDeliveries / workingHours))
+      const hourlyVariation = 0.7 + (Math.random() * 0.6) // 70-130% variation
+      
+      const hourlyDeliveries = Math.round(
+        baseDeliveriesPerHour * 
+        rushHourFactor * 
+        lunchTimeFactor * 
+        endOfDayFactor * 
+        hourlyVariation
+      )
+      
+      // Calculate efficiency with hourly factors
+      const baseEfficiency = 85 + (Math.random() * 15) // 85-100% base
+      const hourlyStress = hour > startHour + 6 ? 0.95 : 1.0 // Fatigue factor
+      const trafficImpact = rushHourFactor > 1 ? 0.9 : 1.0 // Traffic reduces efficiency
+      
+      const hourlyEfficiency = Math.round(
+        baseEfficiency * hourlyStress * trafficImpact * (0.9 + Math.random() * 0.2)
+      )
+      
+      return {
+        hour: hourString,
+        deliveries: Math.max(0, hourlyDeliveries),
+        efficiency: Math.min(100, Math.max(60, hourlyEfficiency))
+      }
+    })
 
     return {
       totalProfit,

@@ -24,35 +24,37 @@ import Link from "next/link"
 
 interface Order {
   id: string
+  orderNumber: string
   customerName: string
   customerAddress: string
-  customerPhone: string
-  items: string
-  totalValue: number
+  orderValue: number
   priority: "low" | "medium" | "high"
   status: "pending" | "assigned" | "in-transit" | "delivered" | "cancelled"
-  orderDate: string
-  deliveryDate?: string
+  driverId?: string
+  routeId?: string
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [routes, setRoutes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const router = useRouter()
 
   // Form state
   const [formData, setFormData] = useState({
+    orderNumber: "",
     customerName: "",
     customerAddress: "",
-    customerPhone: "",
-    items: "",
-    totalValue: 0,
+    orderValue: 0,
     priority: "medium" as "low" | "medium" | "high",
     status: "pending" as "pending" | "assigned" | "in-transit" | "delivered" | "cancelled",
-    deliveryDate: "",
+    driverId: "",
+    routeId: "",
   })
 
   useEffect(() => {
@@ -63,53 +65,44 @@ export default function OrdersPage() {
       return
     }
 
-    // Load orders data
-    loadOrders()
+    // Load data
+    loadData()
   }, [router])
 
-  const loadOrders = async () => {
+  const loadData = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockOrders: Order[] = [
-        {
-          id: "1",
-          customerName: "Alice Johnson",
-          customerAddress: "123 Main St, Downtown",
-          customerPhone: "+1-555-0201",
-          items: "Groceries, Electronics",
-          totalValue: 245.99,
-          priority: "high",
-          status: "in-transit",
-          orderDate: "2024-01-15",
-          deliveryDate: "2024-01-16",
-        },
-        {
-          id: "2",
-          customerName: "Bob Smith",
-          customerAddress: "456 Oak Ave, Suburbs",
-          customerPhone: "+1-555-0202",
-          items: "Clothing, Books",
-          totalValue: 89.5,
-          priority: "medium",
-          status: "assigned",
-          orderDate: "2024-01-15",
-          deliveryDate: "2024-01-17",
-        },
-        {
-          id: "3",
-          customerName: "Carol Davis",
-          customerAddress: "789 Pine Rd, Uptown",
-          customerPhone: "+1-555-0203",
-          items: "Home Appliances",
-          totalValue: 599.99,
-          priority: "low",
-          status: "pending",
-          orderDate: "2024-01-14",
-        },
-      ]
-      setOrders(mockOrders)
-    } catch (err) {
-      setError("Failed to load orders")
+      const token = localStorage.getItem("auth-token")
+      
+      // Load orders
+      const ordersResponse = await fetch("/api/orders", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!ordersResponse.ok) {
+        const errorData = await ordersResponse.json()
+        throw new Error(errorData.error || "Failed to load orders")
+      }
+      const ordersData = await ordersResponse.json()
+      setOrders(ordersData)
+
+      // Load drivers for dropdown
+      const driversResponse = await fetch("/api/drivers", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (driversResponse.ok) {
+        const driversData = await driversResponse.json()
+        setDrivers(driversData)
+      }
+
+      // Load routes for dropdown
+      const routesResponse = await fetch("/api/routes", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (routesResponse.ok) {
+        const routesData = await routesResponse.json()
+        setRoutes(routesData)
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load data")
     } finally {
       setLoading(false)
     }
@@ -118,78 +111,119 @@ export default function OrdersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
 
     try {
+      const token = localStorage.getItem("auth-token")
+      const url = editingOrder ? `/api/orders/${editingOrder.id}` : "/api/orders"
+      const method = editingOrder ? "PUT" : "POST"
+
+      // Prepare data for API
+      const orderData = {
+        ...formData,
+        driverId: formData.driverId || null,
+        routeId: formData.routeId || null,
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save order")
+      }
+
+      const savedOrder = await response.json()
+      
       if (editingOrder) {
-        // Update existing order
-        const updatedOrder = {
-          ...editingOrder,
-          ...formData,
-          orderDate: editingOrder.orderDate,
-        }
-        setOrders(orders.map((o) => (o.id === editingOrder.id ? updatedOrder : o)))
+        setOrders(orders.map((o) => (o.id === editingOrder.id ? savedOrder : o)))
+        setSuccess("Order updated successfully!")
       } else {
-        // Create new order
-        const newOrder: Order = {
-          id: Date.now().toString(),
-          ...formData,
-          orderDate: new Date().toISOString().split("T")[0],
-        }
-        setOrders([...orders, newOrder])
+        setOrders([...orders, savedOrder])
+        setSuccess("Order added successfully!")
       }
 
       // Reset form
       setFormData({
+        orderNumber: "",
         customerName: "",
         customerAddress: "",
-        customerPhone: "",
-        items: "",
-        totalValue: 0,
+        orderValue: 0,
         priority: "medium",
         status: "pending",
-        deliveryDate: "",
+        driverId: "",
+        routeId: "",
       })
       setEditingOrder(null)
       setIsDialogOpen(false)
-    } catch (err) {
-      setError("Failed to save order")
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000)
+    } catch (err: any) {
+      setError(err.message || "Failed to save order")
     }
   }
 
   const handleEdit = (order: Order) => {
     setEditingOrder(order)
     setFormData({
+      orderNumber: order.orderNumber,
       customerName: order.customerName,
       customerAddress: order.customerAddress,
-      customerPhone: order.customerPhone,
-      items: order.items,
-      totalValue: order.totalValue,
+      orderValue: order.orderValue,
       priority: order.priority,
       status: order.status,
-      deliveryDate: order.deliveryDate || "",
+      driverId: order.driverId || "",
+      routeId: order.routeId || "",
     })
     setIsDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this order?")) {
-      setOrders(orders.filter((o) => o.id !== id))
+      try {
+        const token = localStorage.getItem("auth-token")
+        const response = await fetch(`/api/orders/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to delete order")
+        }
+
+        setOrders(orders.filter((o) => o.id !== id))
+        setSuccess("Order deleted successfully!")
+        setTimeout(() => setSuccess(""), 3000)
+      } catch (err: any) {
+        setError(err.message || "Failed to delete order")
+      }
     }
   }
 
   const resetForm = () => {
     setFormData({
+      orderNumber: "",
       customerName: "",
       customerAddress: "",
-      customerPhone: "",
-      items: "",
-      totalValue: 0,
+      orderValue: 0,
       priority: "medium",
       status: "pending",
-      deliveryDate: "",
+      driverId: "",
+      routeId: "",
     })
     setEditingOrder(null)
     setError("")
+    setSuccess("")
   }
 
   const getStatusColor = (status: string) => {
@@ -263,7 +297,7 @@ export default function OrdersPage() {
                   Add Order
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>{editingOrder ? "Edit Order" : "Add New Order"}</DialogTitle>
                   <DialogDescription>
@@ -272,6 +306,31 @@ export default function OrdersPage() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                   <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="orderNumber">Order Number</Label>
+                        <Input
+                          id="orderNumber"
+                          value={formData.orderNumber}
+                          onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="orderValue">Order Value ($)</Label>
+                        <Input
+                          id="orderValue"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.orderValue}
+                          onChange={(e) =>
+                            setFormData({ ...formData, orderValue: Number.parseFloat(e.target.value) || 0 })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="customerName">Customer Name</Label>
                       <Input
@@ -290,81 +349,81 @@ export default function OrdersPage() {
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customerPhone">Customer Phone</Label>
-                      <Input
-                        id="customerPhone"
-                        value={formData.customerPhone}
-                        onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="priority">Priority</Label>
+                        <select
+                          id="priority"
+                          value={formData.priority}
+                          onChange={(e) =>
+                            setFormData({ ...formData, priority: e.target.value as "low" | "medium" | "high" })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <select
+                          id="status"
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="assigned">Assigned</option>
+                          <option value="in-transit">In Transit</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="items">Items</Label>
-                      <Input
-                        id="items"
-                        value={formData.items}
-                        onChange={(e) => setFormData({ ...formData, items: e.target.value })}
-                        placeholder="e.g., Groceries, Electronics"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="totalValue">Total Value ($)</Label>
-                      <Input
-                        id="totalValue"
-                        type="number"
-                        step="0.01"
-                        value={formData.totalValue}
-                        onChange={(e) =>
-                          setFormData({ ...formData, totalValue: Number.parseFloat(e.target.value) || 0 })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <select
-                        id="priority"
-                        value={formData.priority}
-                        onChange={(e) =>
-                          setFormData({ ...formData, priority: e.target.value as "low" | "medium" | "high" })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <select
-                        id="status"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="assigned">Assigned</option>
-                        <option value="in-transit">In Transit</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="deliveryDate">Delivery Date</Label>
-                      <Input
-                        id="deliveryDate"
-                        type="date"
-                        value={formData.deliveryDate}
-                        onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="driverId">Assign Driver (Optional)</Label>
+                        <select
+                          id="driverId"
+                          value={formData.driverId}
+                          onChange={(e) => setFormData({ ...formData, driverId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">No driver assigned</option>
+                          {drivers.map((driver) => (
+                            <option key={driver.id} value={driver.id}>
+                              {driver.name} ({driver.vehicleType})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="routeId">Assign Route (Optional)</Label>
+                        <select
+                          id="routeId"
+                          value={formData.routeId}
+                          onChange={(e) => setFormData({ ...formData, routeId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">No route assigned</option>
+                          {routes.map((route) => (
+                            <option key={route.id} value={route.id}>
+                              {route.name} ({route.startLocation} → {route.endLocation})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                   {error && (
                     <Alert variant="destructive" className="mb-4">
                       <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  {success && (
+                    <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
+                      <AlertDescription>{success}</AlertDescription>
                     </Alert>
                   )}
                   <DialogFooter>
@@ -387,28 +446,24 @@ export default function OrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Order #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Items</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Order Date</TableHead>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>Route</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>{order.customerName}</div>
-                        <div className="text-sm text-gray-500">{order.customerPhone}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.customerAddress}</TableCell>
-                    <TableCell>{order.items}</TableCell>
-                    <TableCell>${order.totalValue.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                    <TableCell>{order.customerName}</TableCell>
+                    <TableCell className="max-w-xs truncate">{order.customerAddress}</TableCell>
+                    <TableCell>${order.orderValue.toFixed(2)}</TableCell>
                     <TableCell>
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}
@@ -421,7 +476,20 @@ export default function OrdersPage() {
                         {order.status}
                       </span>
                     </TableCell>
-                    <TableCell>{order.orderDate}</TableCell>
+                    <TableCell>
+                      {order.driverId ? (
+                        drivers.find(d => d.id === order.driverId)?.name || "Unknown"
+                      ) : (
+                        <span className="text-gray-400">Unassigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {order.routeId ? (
+                        routes.find(r => r.id === order.routeId)?.name || "Unknown"
+                      ) : (
+                        <span className="text-gray-400">Unassigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(order)}>
@@ -436,6 +504,11 @@ export default function OrdersPage() {
                 ))}
               </TableBody>
             </Table>
+            {orders.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No orders found. Add your first order to get started.
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
