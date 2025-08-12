@@ -9,25 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, History, Search, Eye, Calendar, TrendingUp, DollarSign } from "lucide-react"
 import Link from "next/link"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface SimulationHistory {
   id: string
   timestamp: string
-  parameters: {
-    numDrivers: number
-    startTime: string
-    maxHours: number
-  }
-  results: {
-    totalProfit: number
-    efficiencyScore: number
-    onTimeDeliveries: number
-    lateDeliveries: number
-    totalFuelCost: number
-    averageDeliveryTime: number
-  }
-  duration: number // simulation duration in seconds
-  status: "completed" | "failed"
+  numDrivers: number
+  startTime: string
+  maxHoursPerDay: number
+  totalProfit: number
+  efficiencyScore: number
+  onTimeDeliveries: number
+  lateDeliveries: number
+  totalFuelCost: number
+  averageDeliveryTime: number
+  driverUtilization: number
+  hourlyPerformance: number
 }
 
 export default function SimulationHistoryPage() {
@@ -36,6 +33,7 @@ export default function SimulationHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRun, setSelectedRun] = useState<SimulationHistory | null>(null)
+  const [error, setError] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -52,12 +50,17 @@ export default function SimulationHistoryPage() {
 
   useEffect(() => {
     // Filter history based on search term
+    if (!Array.isArray(history)) {
+      setFilteredHistory([])
+      return
+    }
+
     if (searchTerm) {
       const filtered = history.filter(
         (run) =>
           run.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
           run.timestamp.includes(searchTerm) ||
-          run.parameters.numDrivers.toString().includes(searchTerm),
+          run.numDrivers.toString().includes(searchTerm),
       )
       setFilteredHistory(filtered)
     } else {
@@ -67,88 +70,30 @@ export default function SimulationHistoryPage() {
 
   const loadHistory = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockHistory: SimulationHistory[] = [
-        {
-          id: "sim_1704067200000",
-          timestamp: "2024-01-01 09:00:00",
-          parameters: { numDrivers: 5, startTime: "08:00", maxHours: 8 },
-          results: {
-            totalProfit: 47250,
-            efficiencyScore: 89,
-            onTimeDeliveries: 92,
-            lateDeliveries: 8,
-            totalFuelCost: 2150,
-            averageDeliveryTime: 42,
-          },
-          duration: 180,
-          status: "completed",
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch("/api/simulation/history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-        {
-          id: "sim_1704153600000",
-          timestamp: "2024-01-02 10:30:00",
-          parameters: { numDrivers: 7, startTime: "07:30", maxHours: 10 },
-          results: {
-            totalProfit: 52100,
-            efficiencyScore: 91,
-            onTimeDeliveries: 95,
-            lateDeliveries: 5,
-            totalFuelCost: 2890,
-            averageDeliveryTime: 38,
-          },
-          duration: 245,
-          status: "completed",
-        },
-        {
-          id: "sim_1704240000000",
-          timestamp: "2024-01-03 14:15:00",
-          parameters: { numDrivers: 3, startTime: "09:00", maxHours: 6 },
-          results: {
-            totalProfit: 28900,
-            efficiencyScore: 76,
-            onTimeDeliveries: 78,
-            lateDeliveries: 22,
-            totalFuelCost: 1650,
-            averageDeliveryTime: 55,
-          },
-          duration: 120,
-          status: "completed",
-        },
-        {
-          id: "sim_1704326400000",
-          timestamp: "2024-01-04 11:45:00",
-          parameters: { numDrivers: 8, startTime: "06:00", maxHours: 12 },
-          results: {
-            totalProfit: 61200,
-            efficiencyScore: 94,
-            onTimeDeliveries: 97,
-            lateDeliveries: 3,
-            totalFuelCost: 3200,
-            averageDeliveryTime: 35,
-          },
-          duration: 320,
-          status: "completed",
-        },
-        {
-          id: "sim_1704412800000",
-          timestamp: "2024-01-05 16:20:00",
-          parameters: { numDrivers: 6, startTime: "08:30", maxHours: 9 },
-          results: {
-            totalProfit: 0,
-            efficiencyScore: 0,
-            onTimeDeliveries: 0,
-            lateDeliveries: 0,
-            totalFuelCost: 0,
-            averageDeliveryTime: 0,
-          },
-          duration: 15,
-          status: "failed",
-        },
-      ]
-      setHistory(mockHistory)
-      setFilteredHistory(mockHistory)
-    } catch (err) {
-      console.error("Failed to load simulation history")
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to load simulation history")
+      }
+
+      const data = await response.json()
+      
+      // Ensure data is an array
+      const historyArray = Array.isArray(data) ? data : []
+      setHistory(historyArray)
+      setFilteredHistory(historyArray)
+    } catch (err: any) {
+      console.error("History loading error:", err)
+      setError(err.message || "Failed to load simulation history")
+      // Set empty arrays on error
+      setHistory([])
+      setFilteredHistory([])
     } finally {
       setLoading(false)
     }
@@ -156,12 +101,6 @@ export default function SimulationHistoryPage() {
 
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleString()
-  }
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}m ${remainingSeconds}s`
   }
 
   const getEfficiencyColor = (score: number) => {
@@ -221,6 +160,12 @@ export default function SimulationHistoryPage() {
           </div>
         </div>
 
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
@@ -229,7 +174,7 @@ export default function SimulationHistoryPage() {
               <History className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{history.length}</div>
+              <div className="text-2xl font-bold">{Array.isArray(history) ? history.length : 0}</div>
             </CardContent>
           </Card>
 
@@ -240,7 +185,7 @@ export default function SimulationHistoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {history.filter((run) => run.status === "completed").length}
+                {Array.isArray(history) ? history.filter((run) => run.efficiencyScore > 0).length : 0}
               </div>
             </CardContent>
           </Card>
@@ -252,7 +197,7 @@ export default function SimulationHistoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {Math.max(...history.map((run) => run.results.efficiencyScore))}%
+                {Array.isArray(history) && history.length > 0 ? Math.max(...history.map((run) => run.efficiencyScore)) : 0}%
               </div>
             </CardContent>
           </Card>
@@ -264,7 +209,7 @@ export default function SimulationHistoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${Math.max(...history.map((run) => run.results.totalProfit)).toLocaleString()}
+                {Array.isArray(history) && history.length > 0 ? `$${Math.max(...history.map((run) => run.totalProfit)).toLocaleString()}` : "$0"}
               </div>
             </CardContent>
           </Card>
@@ -286,15 +231,15 @@ export default function SimulationHistoryPage() {
                   <TableHead>Profit</TableHead>
                   <TableHead>Efficiency</TableHead>
                   <TableHead>Deliveries</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Fuel Cost</TableHead>
+                  <TableHead>Driver Util.</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredHistory.map((run) => (
                   <TableRow key={run.id}>
-                    <TableCell className="font-mono text-sm">{run.id.split("_")[1]}</TableCell>
+                    <TableCell className="font-mono text-sm">{run.id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-400" />
@@ -303,42 +248,44 @@ export default function SimulationHistoryPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{run.parameters.numDrivers} drivers</div>
+                        <div>{run.numDrivers} drivers</div>
                         <div className="text-gray-500">
-                          {run.parameters.startTime}, {run.parameters.maxHours}h max
+                          {run.startTime}, {run.maxHoursPerDay}h max
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-green-600">
-                        {run.status === "completed" ? `$${run.results.totalProfit.toLocaleString()}` : "-"}
+                        ${run.totalProfit.toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className={`font-medium ${getEfficiencyColor(run.results.efficiencyScore)}`}>
-                        {run.status === "completed" ? `${run.results.efficiencyScore}%` : "-"}
+                      <div className={`font-medium ${getEfficiencyColor(run.efficiencyScore)}`}>
+                        {run.efficiencyScore}%
                       </div>
                     </TableCell>
                     <TableCell>
-                      {run.status === "completed" ? (
-                        <div className="text-sm">
-                          <div className="text-green-600">{run.results.onTimeDeliveries} on-time</div>
-                          <div className="text-red-600">{run.results.lateDeliveries} late</div>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
+                      <div className="text-sm">
+                        <div className="text-green-600">{run.onTimeDeliveries} on-time</div>
+                        <div className="text-red-600">{run.lateDeliveries} late</div>
+                      </div>
                     </TableCell>
-                    <TableCell>{formatDuration(run.duration)}</TableCell>
                     <TableCell>
-                      <Badge variant={run.status === "completed" ? "default" : "destructive"}>{run.status}</Badge>
+                      <div className="font-medium">
+                        ${run.totalFuelCost.toLocaleString()}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{run.driverUtilization}%</div>
+                        <div className="text-gray-500">{run.hourlyPerformance}/h</div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setSelectedRun(run)}
-                        disabled={run.status === "failed"}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -374,16 +321,16 @@ export default function SimulationHistoryPage() {
                   <h3 className="font-semibold mb-2">Parameters</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-500">Drivers:</span> {selectedRun.parameters.numDrivers}
+                      <span className="text-gray-500">Drivers:</span> {selectedRun.numDrivers}
                     </div>
                     <div>
-                      <span className="text-gray-500">Start Time:</span> {selectedRun.parameters.startTime}
+                      <span className="text-gray-500">Start Time:</span> {selectedRun.startTime}
                     </div>
                     <div>
-                      <span className="text-gray-500">Max Hours:</span> {selectedRun.parameters.maxHours}
+                      <span className="text-gray-500">Max Hours:</span> {selectedRun.maxHoursPerDay}
                     </div>
                     <div>
-                      <span className="text-gray-500">Duration:</span> {formatDuration(selectedRun.duration)}
+                      <span className="text-gray-500">Timestamp:</span> {formatDate(selectedRun.timestamp)}
                     </div>
                   </div>
                 </div>
@@ -394,30 +341,38 @@ export default function SimulationHistoryPage() {
                     <div>
                       <span className="text-gray-500">Total Profit:</span>{" "}
                       <span className="font-medium text-green-600">
-                        ${selectedRun.results.totalProfit.toLocaleString()}
+                        ${selectedRun.totalProfit.toLocaleString()}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Efficiency Score:</span>{" "}
-                      <span className={`font-medium ${getEfficiencyColor(selectedRun.results.efficiencyScore)}`}>
-                        {selectedRun.results.efficiencyScore}%
+                      <span className={`font-medium ${getEfficiencyColor(selectedRun.efficiencyScore)}`}>
+                        {selectedRun.efficiencyScore}%
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">On-time Deliveries:</span>{" "}
-                      <span className="font-medium text-green-600">{selectedRun.results.onTimeDeliveries}</span>
+                      <span className="font-medium text-green-600">{selectedRun.onTimeDeliveries}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Late Deliveries:</span>{" "}
-                      <span className="font-medium text-red-600">{selectedRun.results.lateDeliveries}</span>
+                      <span className="font-medium text-red-600">{selectedRun.lateDeliveries}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Fuel Cost:</span>{" "}
-                      <span className="font-medium">${selectedRun.results.totalFuelCost.toLocaleString()}</span>
+                      <span className="font-medium">${selectedRun.totalFuelCost.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">Avg Delivery Time:</span>{" "}
-                      <span className="font-medium">{selectedRun.results.averageDeliveryTime} min</span>
+                      <span className="font-medium">{selectedRun.averageDeliveryTime} min</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Driver Utilization:</span>{" "}
+                      <span className="font-medium">{selectedRun.driverUtilization}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Hourly Performance:</span>{" "}
+                      <span className="font-medium">{selectedRun.hourlyPerformance}/h</span>
                     </div>
                   </div>
                 </div>

@@ -1,159 +1,185 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { withAuth, AuthenticatedRequest } from '@/lib/auth-middleware'
-import { addCorsHeaders, handleCors } from '@/lib/cors'
+import { NextRequest, NextResponse } from "next/server"
+import { withAuth, AuthenticatedRequest } from "@/lib/auth-middleware"
+import { addCorsHeaders, handleCors } from "@/lib/cors"
+import { prisma } from "@/lib/db"
 
-// GET /api/routes/[id] - Get a specific route
-async function getRoute(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+// Wrapper functions to handle params
+const getRouteHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     const route = await prisma.route.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!route) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Route not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Route not found" },
+        { status: 404 }
       )
     }
 
-    return addCorsHeaders(NextResponse.json(route))
+    return NextResponse.json(route)
   } catch (error) {
-    console.error('Get route error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error fetching route:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-// PUT /api/routes/[id] - Update a route
-async function updateRoute(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+const updateRouteHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     const body = await request.json()
     const { name, startLocation, endLocation, distance, estimatedTime, fuelCost } = body
 
+    // Validation
+    if (!name || !startLocation || !endLocation) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      )
+    }
+
+    if (distance < 0) {
+      return NextResponse.json(
+        { error: "Distance cannot be negative" },
+        { status: 400 }
+      )
+    }
+
+    if (estimatedTime < 0) {
+      return NextResponse.json(
+        { error: "Estimated time cannot be negative" },
+        { status: 400 }
+      )
+    }
+
+    if (fuelCost < 0) {
+      return NextResponse.json(
+        { error: "Fuel cost cannot be negative" },
+        { status: 400 }
+      )
+    }
+
     // Check if route exists
     const existingRoute = await prisma.route.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!existingRoute) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Route not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Route not found" },
+        { status: 404 }
       )
     }
 
-    // Validate numeric values if provided
-    if (distance !== undefined && distance <= 0) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Distance must be a positive value' },
-          { status: 400 }
-        )
-      )
-    }
-
-    if (estimatedTime !== undefined && estimatedTime <= 0) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Estimated time must be a positive value' },
-          { status: 400 }
-        )
-      )
-    }
-
-    if (fuelCost !== undefined && fuelCost < 0) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Fuel cost must be a non-negative value' },
-          { status: 400 }
-        )
-      )
-    }
-
+    // Update route
     const updatedRoute = await prisma.route.update({
-      where: { id: params.id },
+      where: { id },
       data: {
-        ...(name && { name }),
-        ...(startLocation && { startLocation }),
-        ...(endLocation && { endLocation }),
-        ...(distance !== undefined && { distance: parseFloat(distance) }),
-        ...(estimatedTime !== undefined && { estimatedTime: parseInt(estimatedTime) }),
-        ...(fuelCost !== undefined && { fuelCost: parseFloat(fuelCost) })
-      }
+        name,
+        startLocation,
+        endLocation,
+        distance,
+        estimatedTime,
+        fuelCost,
+      },
     })
 
-    return addCorsHeaders(NextResponse.json(updatedRoute))
+    return NextResponse.json(updatedRoute)
   } catch (error) {
-    console.error('Update route error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error updating route:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-// DELETE /api/routes/[id] - Delete a route
-async function deleteRoute(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+const deleteRouteHandler = async (request: AuthenticatedRequest, id: string) => {
   try {
     // Check if route exists
     const existingRoute = await prisma.route.findUnique({
-      where: { id: params.id }
+      where: { id },
     })
 
     if (!existingRoute) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Route not found' },
-          { status: 404 }
-        )
+      return NextResponse.json(
+        { error: "Route not found" },
+        { status: 404 }
       )
     }
 
     // Check if route has associated orders
     const associatedOrders = await prisma.order.findFirst({
-      where: { routeId: params.id }
+      where: { routeId: id },
     })
 
     if (associatedOrders) {
-      return addCorsHeaders(
-        NextResponse.json(
-          { error: 'Cannot delete route with associated orders' },
-          { status: 400 }
-        )
+      return NextResponse.json(
+        { error: "Cannot delete route with associated orders" },
+        { status: 400 }
       )
     }
 
+    // Delete route
     await prisma.route.delete({
-      where: { id: params.id }
+      where: { id },
     })
 
-    return addCorsHeaders(NextResponse.json({ message: 'Route deleted successfully' }))
+    return NextResponse.json({ message: "Route deleted successfully" })
   } catch (error) {
-    console.error('Delete route error:', error)
-    return addCorsHeaders(
-      NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+    console.error("Error deleting route:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     )
   }
 }
 
-export const GET = withAuth(getRoute)
-export const PUT = withAuth(updateRoute)
-export const DELETE = withAuth(deleteRoute)
+// Route handlers
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return getRouteHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return updateRouteHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const corsResult = handleCors(request)
+  if (corsResult) return corsResult
+
+  const authResult = await withAuth(async (req: AuthenticatedRequest) => {
+    return deleteRouteHandler(req, params.id)
+  })(request)
+
+  return addCorsHeaders(authResult)
+}
 
 export async function OPTIONS(request: NextRequest) {
-  return handleCors(request) || new NextResponse(null, { status: 200 })
+  return handleCors(request)
 } 
