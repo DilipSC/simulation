@@ -140,13 +140,14 @@ const deleteRouteHandler = async (request: AuthenticatedRequest, id: string) => 
 // Route handlers
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return getRouteHandler(req, params.id)
+    return getRouteHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
@@ -154,13 +155,14 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return updateRouteHandler(req, params.id)
+    return updateRouteHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
@@ -168,18 +170,19 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return deleteRouteHandler(req, params.id)
+    return deleteRouteHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
 }
 
 export async function OPTIONS(request: NextRequest) {
-  return handleCors(request)
+  return handleCors(request) || new NextResponse(null, { status: 200 })
 } 
