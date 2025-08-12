@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000'
+
 
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': CORS_ORIGIN,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',

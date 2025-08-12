@@ -163,13 +163,14 @@ const deleteDriverHandler = async (request: AuthenticatedRequest, id: string) =>
 // Route handlers
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return getDriverHandler(req, params.id)
+    return getDriverHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
@@ -177,13 +178,14 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return updateDriverHandler(req, params.id)
+    return updateDriverHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
@@ -191,13 +193,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = handleCors(request)
   if (corsResult) return corsResult
 
+  const resolvedParams = await params
   const authResult = await withAuth(async (req: AuthenticatedRequest) => {
-    return deleteDriverHandler(req, params.id)
+    return deleteDriverHandler(req, resolvedParams.id)
   })(request)
 
   return addCorsHeaders(authResult)
