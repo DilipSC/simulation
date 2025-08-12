@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Manager {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("managers")
+}
+
+model Driver {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String
+  licenseNumber String  @unique
+  vehicleType  String
+  maxHoursPerDay Int    @default(8)
+  hourlyRate   Float    @default(25.0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  orders      Order[]
+  simulationResults SimulationResult[]
+
+  @@map("drivers")
+}
+
+model Route {
+  id          String   @id @default(cuid())
+  name        String
+  startLocation String
+  endLocation   String
+  distance     Float    // in kilometers
+  estimatedTime Int     // in minutes
+  fuelCost     Float    // per kilometer
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  orders      Order[]
+
+  @@map("routes")
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  orderNumber String   @unique
+  customerName String
+  customerAddress String
+  orderValue   Float
+  priority     String   @default("normal") // low, normal, high, urgent
+  status       String   @default("pending") // pending, assigned, in_transit, delivered, cancelled
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  driverId    String?
+  driver      Driver?  @relation(fields: [driverId], references: [id])
+  routeId     String?
+  route       Route?   @relation(fields: [routeId], references: [id])
+
+  @@map("orders")
+}
+
+model SimulationResult {
+  id              String   @id @default(cuid())
+  numDrivers      Int
+  startTime       String   // HH:MM format
+  maxHoursPerDay  Int
+  totalProfit     Float
+  efficiencyScore Float
+  onTimeDeliveries Int
+  lateDeliveries  Int
+  totalFuelCost   Float
+  averageDeliveryTime Float
+  driverUtilization Json   // Array of driver utilization data
+  hourlyPerformance Json   // Array of hourly performance data
+  createdAt       DateTime @default(now())
+
+  // Relationships
+  driverId       String?
+  driver         Driver?  @relation(fields: [driverId], references: [id])
+
+  @@map("simulation_results")
+}

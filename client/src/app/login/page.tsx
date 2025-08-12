@@ -24,13 +24,12 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Mock API call - replace with actual backend endpoint
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email: username, password }),
       })
 
       if (response.ok) {
@@ -40,17 +39,10 @@ export default function LoginPage() {
         router.push("/dashboard")
       } else {
         const errorData = await response.json()
-        setError(errorData.message || "Login failed")
+        setError(errorData.error || "Login failed")
       }
     } catch (err) {
-      // For demo purposes, allow any username/password combination
-      if (username && password) {
-        const mockToken = "mock-jwt-token-" + Date.now()
-        localStorage.setItem("auth-token", mockToken)
-        router.push("/dashboard")
-      } else {
-        setError("Please enter both username and password")
-      }
+      setError("Network error. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -101,7 +93,9 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-gray-500">Demo: Use any username and password to login</div>
+          <div className="mt-4 text-center text-sm text-gray-500">
+            Demo: admin@greencart.com / password123
+          </div>
         </CardContent>
       </Card>
     </div>
