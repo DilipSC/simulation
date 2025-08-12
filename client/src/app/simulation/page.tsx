@@ -62,7 +62,6 @@ export default function SimulationPage() {
     setLoading(true)
 
     try {
-      // Mock API call - replace with actual backend endpoint
       const response = await fetch("/api/simulation/run", {
         method: "POST",
         headers: {
@@ -80,30 +79,11 @@ export default function SimulationPage() {
         const data = await response.json()
         setResult(data)
       } else {
-        setError("Failed to run simulation")
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to run simulation")
       }
     } catch (err) {
-      // Mock simulation results for demo
-      await new Promise((resolve) => setTimeout(resolve, 3000)) // Simulate processing time
-
-      const mockResult: SimulationResult = {
-        totalProfit: Math.floor(Math.random() * 10000) + 40000,
-        efficiencyScore: Math.floor(Math.random() * 20) + 80,
-        onTimeDeliveries: Math.floor(Math.random() * 20) + 80,
-        lateDeliveries: Math.floor(Math.random() * 10) + 5,
-        totalFuelCost: Math.floor(Math.random() * 1000) + 2000,
-        averageDeliveryTime: Math.floor(Math.random() * 30) + 45,
-        driverUtilization: Array.from({ length: numDrivers }, (_, i) => ({
-          driver: `Driver ${i + 1}`,
-          utilization: Math.floor(Math.random() * 30) + 70,
-        })),
-        hourlyPerformance: Array.from({ length: 12 }, (_, i) => ({
-          hour: `${8 + i}:00`,
-          deliveries: Math.floor(Math.random() * 10) + 5,
-          efficiency: Math.floor(Math.random() * 20) + 80,
-        })),
-      }
-      setResult(mockResult)
+      setError("Network error. Please try again.")
     } finally {
       setLoading(false)
       setSimulationRunning(false)
